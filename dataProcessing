@@ -4,3 +4,5 @@ connection = psycopg2.connect(dbname='AbstractData', user='postgres',
 cursor = connection.cursor()
 str = "5 6 8 9 2"
 cursor.execute("INSERT INTO \"Data\".\"Data\" (DataNum) VALUES (" + str + ");")
+
+print()
