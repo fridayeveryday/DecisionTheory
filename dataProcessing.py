@@ -62,28 +62,27 @@ def check_belonging(data, l_border, r_border):
     else:
         return False
 
-    # def get_avarage(avarage, new_number):
-    # avarage
-
 
 def process_data(records, range_width, max_val):
-    list_of_ranges = [[] for _ in range(max_val // range_width)]
+    list_of_ranges = [[] for _ in range(math.ceil(max_val / range_width))]
     initial_left_range_border = 1
     if range_width == 1:
         initial_left_range_border = 0
     for row in records:
         left_range_border = initial_left_range_border
-        range_num = 0
         while left_range_border < max_val:
-            # while range_num < len(list_of_ranges):
-            # if check_belonging(row[1], int(range_border), int(range_border + range_width)):
-            if check_belonging(row, int(left_range_border), int(left_range_border + range_width)):
+            # first if for db, second for local working
+            if check_belonging(row[1], int(left_range_border), int(left_range_border + range_width)):
+            # if check_belonging(row, int(left_range_border), int(left_range_border + range_width)):
                 # add elem if it belongs the range
-                # list_of_ranges[range_num].append(row[1])
+                # first "list_of_ranges" for db, second for local working
+                try:
+                    list_of_ranges[left_range_border // range_width].append(row[1])
+                except:
+                   print(left_range_border, range_width, "    ", row[1])
 
-                list_of_ranges[left_range_border // range_width].append(row)
+                # list_of_ranges[left_range_border // range_width].append(row)
                 break
-            # range_num += 1
             left_range_border += range_width
 
     return list_of_ranges
@@ -110,34 +109,69 @@ def find_probability_of_each_range(range_list, amount_of_elem):
     return range_list
 
 
+def add_new_data(db_man, max_value, num_of_rows):
+    # string with data splitting by space
+    str = generate_data(num_of_rows, max_value)
+    # insert into db
+    db_man.insert_data(str)
+
+
+def ask_choice(choice_text, agreement_text):
+    print(choice_text)
+    if input() == agreement_text:
+        return True
+    else:
+        return False
+
+
+def get_max_val_and_quantity(raw_res):
+    max = 0
+    for row in raw_res:
+        if row[1]>max:
+            max = row[1]
+    return max, len(raw_res)
+
+
 def main():
-    # db_man = Db_manager.get_instance()
-    # str = "120 125 159"
-    # db_man.insert_data(str)
+
+    db_man = Db_manager.get_instance()
     # db_man.delete_contents_of_the_table()
 
-    # width of each range
-    range_width = 3
-    # max value of each elements
-    max_value = 10
-    # amount rows for db, amount of numbers
-    num_of_rows = 12
-    # str = string with data splitting by space
-    str = generate_data(num_of_rows, max_value).split(" ")
-    # raw_res - list of data
-    raw_res = [int(el) for el in str]
-    a = 2
+    agreement_txt = 'y'
+    asking_txt = "Do you want insert a new data into the db? [{}/n]".format(agreement_txt)
+    if ask_choice(asking_txt, agreement_txt):
+        print("Input a max value of each numbers and quantity of records")
+        max_val = input("enter a max value\n")
+        num_of_rows = input("enter a quantity\n")
+        add_new_data(db_man, int(max_val), int(num_of_rows))
 
-    # raw_res[0] = 0
-    # raw_res = [ 1, 5, 4, 2, 3]
-
-    num_of_rows = len(raw_res)
-    # 2d list with devided into ranges
-    if max_value // range_width <= 1:
-        print("Your range width is too wide than your max value of each elements")
+    print("Do you want get data from the db and process them? [{}/n]".format(agreement_txt))
+    if input() != "y":
         return
-    else:
-        raw_res = process_data(raw_res, range_width, max_value)
+    raw_res = db_man.get_data()
+    # max value of each elements
+    # amount rows for db, amount of numbers
+    max_value, num_of_rows = get_max_val_and_quantity(raw_res)
+
+    # max_value = 10
+    # num_of_rows = 12
+
+    # raw_res - list of data
+    # raw_res = [int(el) for el in str]
+    # 2d list with devided into ranges
+
+    print("Enter a width of each range")
+
+    # width of each range
+    range_width = 0
+    while True:
+        range_width = int(input())
+        if max_value // range_width <= 1:
+            print("Your range width is too wide than your max value of each elements\nPlease, try again")
+        else:
+            break
+
+    raw_res = process_data(raw_res, range_width, max_value)
     # copy of raw_res
     res_as_probability = raw_res[:]
     # counting the average value in each ranges
@@ -151,10 +185,11 @@ def main():
     res_as_probability = find_probability_of_each_range(res_as_probability, num_of_rows)
     # name of each range
     list_of_ranges = ["{}-{}".format(i * range_width + 1, (i + 1) * range_width) for i in range((max_value // range_width))]
-
+    # if the range width is not divisible withoy remainder
     if max_value % range_width != 0:
-        list_of_ranges[len(list_of_ranges) - 1] = "{}-{}".format(max_value - range_width, max_value)
-    # mpl.bar(list_of_ranges, res_as_probability)
+        list_of_ranges.append("{}-{}".format(max_value - max_value % range_width, max_value))
+        # list_of_ranges[len(list_of_ranges) - 1] = "{}-{}".format(max_value - range_width, max_value)
+
     rounding_accuracy = 2
     # rounding probability of each range
     probability_as_label = [round(el, rounding_accuracy) for el in res_as_probability]
@@ -178,15 +213,9 @@ def main():
         axes.text(x, y, label, ha='center', va='center')  # выводим текст
 
     axes.set_ybound(y0, 1) #y1 + y_shift)
-    axes.set_title("probability")
+    axes.set_title("probability\nmax value is {}".format(max_value))
     mpl.show()
-
+    # for delete data in the db
 
 if __name__ == '__main__':
-    # connection = psycopg2.connect(dbname='DT1', user='postgres',
-    #                               password='admin', host='localhost')
-    # cursor = connection.cursor()
-    # data_str = "120 125 159"
-    # cursor.execute('SELECT * FROM fill_db(%s);', [data_str,])
-    # connection.commit()
     main()
