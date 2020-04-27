@@ -10,7 +10,6 @@ class Db_manager:
     __instance = None
     __connection = None
     __cursor = None
-    f = 0
 
     @staticmethod
     def get_instance():
@@ -26,13 +25,10 @@ class Db_manager:
         return connection, cursor
 
     def __init__(self):
-        Db_manager.f = 7
         Db_manager.__connection, Db_manager.__cursor = Db_manager.get_connection_and_cursor()
 
     @classmethod
     def insert_data(cls, data_str):
-        g = 9
-        h = g
         cls.__cursor.execute('SELECT * FROM fill_db(%s);', [data_str, ])
         cls.__connection.commit()
 
@@ -80,8 +76,6 @@ def process_data(records, range_width, max_val):
                     list_of_ranges[left_range_border // range_width].append(row[1])
                 except:
                    print(left_range_border, range_width, "    ", row[1])
-
-                # list_of_ranges[left_range_border // range_width].append(row)
                 break
             left_range_border += range_width
 
@@ -132,6 +126,30 @@ def get_max_val_and_quantity(raw_res):
     return max, len(raw_res)
 
 
+def draw_plot(res_as_probability, list_of_ranges, probability_as_label, max_value):
+    positions = np.arange(len(res_as_probability))
+    figure = mpl.figure()
+    axes = figure.gca()
+    # width of each bar
+    width = 0.99
+    axes.bar(positions, res_as_probability, width, tick_label=list_of_ranges,
+             align='center')
+    y0, y1 = axes.get_ybound()
+
+    y_shift = 0.1 * (y1 - y0)
+
+    for i, rect in enumerate(axes.patches):
+        height = rect.get_height()
+        label = probability_as_label[i]
+        x = rect.get_x() + rect.get_width() / 2
+        y = y0 + height + y_shift / 2
+        axes.text(x, y, label, ha='center', va='center')
+
+    axes.set_ybound(y0, 1)  # y1 + y_shift)
+    axes.set_title("probability\nmax value is {}".format(max_value))
+    mpl.show()
+
+
 def main():
 
     db_man = Db_manager.get_instance()
@@ -152,13 +170,6 @@ def main():
     # max value of each elements
     # amount rows for db, amount of numbers
     max_value, num_of_rows = get_max_val_and_quantity(raw_res)
-
-    # max_value = 10
-    # num_of_rows = 12
-
-    # raw_res - list of data
-    # raw_res = [int(el) for el in str]
-    # 2d list with devided into ranges
 
     print("Enter a width of each range")
 
@@ -194,27 +205,8 @@ def main():
     # rounding probability of each range
     probability_as_label = [round(el, rounding_accuracy) for el in res_as_probability]
 
-    positions = np.arange(len(res_as_probability))
-    figure = mpl.figure()
-    axes = figure.gca()
-    # width of each bar
-    width = 0.99
-    axes.bar(positions, res_as_probability, width, tick_label=list_of_ranges,
-             align='center')
-    y0, y1 = axes.get_ybound()  # размер графика по оси Y
-
-    y_shift = 0.1 * (y1 - y0)  # дополнительное место под надписи
-
-    for i, rect in enumerate(axes.patches):  # по всем нарисованным прямоугольникам
-        height = rect.get_height()
-        label = probability_as_label[i]
-        x = rect.get_x() + rect.get_width() / 2  # посередине прямоугольника
-        y = y0 + height + y_shift / 2  # над прямоугольником в середине доп. места
-        axes.text(x, y, label, ha='center', va='center')  # выводим текст
-
-    axes.set_ybound(y0, 1) #y1 + y_shift)
-    axes.set_title("probability\nmax value is {}".format(max_value))
-    mpl.show()
+    # draw a plot of probability
+    draw_plot(res_as_probability,list_of_ranges,probability_as_label, max_value)
     # for delete data in the db
 
 if __name__ == '__main__':
